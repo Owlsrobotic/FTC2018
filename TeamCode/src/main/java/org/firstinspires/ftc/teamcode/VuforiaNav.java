@@ -166,6 +166,7 @@ public class VuforiaNav extends LinearOpMode {
                 telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener)trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
 
                 OpenGLMatrix pose = ((VuforiaTrackableDefaultListener) trackable.getListener()).getPose();
+
                 if (pose != null) {
                     VectorF trans = pose.getTranslation();
                     Orientation rot = Orientation.getOrientation(pose, AxesReference.EXTRINSIC, AxesOrder.XYZ, AngleUnit.DEGREES);
@@ -195,6 +196,7 @@ public class VuforiaNav extends LinearOpMode {
                 PosRot markerRotPos = markerPosition.get(trackerName);
 
                 PosRot robotRotPos = new PosRot(tX / 1000.0, tZ / 1000.0, rY);
+                robotRotPos = robotRotPos.rotate(-1.0 * robotRotPos.rot);
                 robotRotPos = robotRotPos.rotate(-1.0 * markerRotPos.rot);
 
                 telemetry.addData("Robot Pos X: ", markerRotPos.x + robotRotPos.x);

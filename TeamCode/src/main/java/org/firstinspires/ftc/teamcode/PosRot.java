@@ -33,4 +33,15 @@ public class PosRot {
 
         return new PosRot(x * cos + -1.0 * sin * y, sin * x + cos * y, rot);
     }
+
+    public static double convertToFieldAngle(double cartesianAngle) {
+        double newAngle = -1.0 * cartesianAngle + 90;
+
+        return newAngle;
+    }
+    public static double convertToCartesianAngle(double fieldAngle) {
+        double newAngle = -1.0 * (fieldAngle - 90);
+
+        return newAngle;
+    }
 }

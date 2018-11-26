@@ -51,7 +51,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackableDefau
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -89,46 +88,60 @@ import java.util.List;
 public class VuforiaNav extends LinearOpMode {
 
     public static final String TAG = "Vuforia Navigation Sample";
+
     OpenGLMatrix lastLocation = null;
 
+    /**
+     * {@link #vuforia} is the variable we will use to store our instance of the Vuforia
+     * localization engine.
+     */
     VuforiaLocalizer vuforia;
 
-    double FIELD_LENGTH_M = 3.6576;
-    double WALL_DISTANCE_FROM_ORIGIN_M = FIELD_LENGTH_M / 2.0;
-
-    HashMap<String, PosRot> markerPosition;
-    String bluePerimeterKey = "BluePerimeter";
-    String redPerimeterKey = "RedPerimeter";
-    String frontPerimeterKey = "FrontPerimeter";
-    String backPerimeterKey = "BackPerimeter";
-
     @Override public void runOpMode() {
-        markerPosition = new HashMap<>();
-        markerPosition.put(frontPerimeterKey, new PosRot(0.0, WALL_DISTANCE_FROM_ORIGIN_M, 0));
-        markerPosition.put(backPerimeterKey, new PosRot(0.0, -1.0 * WALL_DISTANCE_FROM_ORIGIN_M, 180));
-        markerPosition.put(redPerimeterKey, new PosRot(-1.0 * WALL_DISTANCE_FROM_ORIGIN_M, 0.0, -90));
-        markerPosition.put(bluePerimeterKey, new PosRot(WALL_DISTANCE_FROM_ORIGIN_M, 0.0, 90));
-
+        /*
+         * To start up Vuforia, tell it the view that we wish to use for camera monitor (on the RC phone);
+         * If no camera monitor is desired, use the parameterless constructor instead (commented out below).
+         */
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
 
+        // OR...  Do Not Activate the Camera Monitor View, to save power
+        // VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
+
+        /*
+         * IMPORTANT: You need to obtain your own license key to use Vuforia. The string below with which
+         * 'parameters.vuforiaLicenseKey' is initialized is for illustration only, and will not function.
+         * A Vuforia 'Development' license key, can be obtained free of charge from the Vuforia developer
+         * web site at https://developer.vuforia.com/license-manager.
+         *
+         * Vuforia license keys are always 380 characters long, and look as if they contain mostly
+         * random data. As an example, here is a example of a fragment of a valid key:
+         *      ... yIgIzTqZ4mWjk9wd3cZO9T1axEqzuhxoGlfOOI2dRzKS4T0hQ8kT ...
+         * Once you've obtained a license key, copy the string from the Vuforia web site
+         * and paste it in to your code onthe next line, between the double quotes.
+         */
         parameters.vuforiaLicenseKey = "AQbo49L/////AAABmevTy7Z03UsqrGI3R60ynpp4g2rvNVf/1dCnq/yA0t/udppqkvr8wuV7EJUTuEa5rpWh172gpT25p58RhAeE2g5ulDjPlko+sREUhxbr5Nlu7T0dcljWhUCWoTe2wVPN+pI4TRbfsXfTKLhPxDsk8H4uXFFXLoMNrLV/cv83mGrUpSGmYDqVQczcgKcZjKCDbxC0QtOv5alUZfT9Qt6rrIYFG0ZCoVUnq64B6yeDS4P49yo5czr1LQ/9ZOjGeoaFzOG18WjxKoNnr7dffjEwvEj9p/uaUYT025Bzu7w6J0SqRcc0+BGAkPVTr54/sxJIL82+UEWzkApu5g6xDrYT5+s/dDh+aS59TYElhpGOuFeI";
 
+        /*
+         * We also indicate which camera on the RC that we wish to use.
+         * Here we chose the back (HiRes) camera (for greater range), but
+         * for a competition robot, the front camera might be more convenient.
+         */
         parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
         this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
 
         VuforiaTrackables roverRuckus = this.vuforia.loadTrackablesFromAsset("RoverRuckus");
         VuforiaTrackable bluePerimeter = roverRuckus.get(0);
-        bluePerimeter.setName(bluePerimeterKey);
+        bluePerimeter.setName("BluePerimeter");
 
         VuforiaTrackable redPerimeter  = roverRuckus.get(1);
-        redPerimeter.setName(redPerimeterKey);
+        redPerimeter.setName("RedPerimeter");
 
         VuforiaTrackable frontPerimeter  = roverRuckus.get(2);
-        frontPerimeter.setName(frontPerimeterKey);
+        frontPerimeter.setName("FrontPerimeter");
 
         VuforiaTrackable backPerimeter  = roverRuckus.get(3);
-        backPerimeter.setName(backPerimeterKey);
+        backPerimeter.setName("BackPerimeter");
 
         /** For convenience, gather together all the trackable objects in one easily-iterable collection */
         List<VuforiaTrackable> allTrackables = new ArrayList<VuforiaTrackable>();
@@ -155,8 +168,6 @@ public class VuforiaNav extends LinearOpMode {
             double rY = 0.0;
             double rZ = 0.0;
 
-            String trackerName = "";
-
             for (VuforiaTrackable trackable : allTrackables) {
                 /**
                  * getUpdatedRobotLocation() will return null if no new information is available since
@@ -166,7 +177,6 @@ public class VuforiaNav extends LinearOpMode {
                 telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener)trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
 
                 OpenGLMatrix pose = ((VuforiaTrackableDefaultListener) trackable.getListener()).getPose();
-
                 if (pose != null) {
                     VectorF trans = pose.getTranslation();
                     Orientation rot = Orientation.getOrientation(pose, AxesReference.EXTRINSIC, AxesOrder.XYZ, AngleUnit.DEGREES);
@@ -177,8 +187,6 @@ public class VuforiaNav extends LinearOpMode {
                     rX = rot.firstAngle;
                     rY = rot.secondAngle;
                     rZ = rot.thirdAngle;
-
-                    trackerName = trackable.getName();
                 }
             }
             /**
@@ -192,17 +200,6 @@ public class VuforiaNav extends LinearOpMode {
                 telemetry.addData("Rot X: ", rX);
                 telemetry.addData("Rot Y: ", rY);
                 telemetry.addData("Rot Z: ", rZ);
-
-                PosRot markerRotPos = markerPosition.get(trackerName);
-
-                PosRot robotRotPos = new PosRot(tX / 1000.0, tZ / 1000.0, rY);
-                robotRotPos = robotRotPos.rotate(-1.0 * robotRotPos.rot);
-                robotRotPos = robotRotPos.rotate(-1.0 * markerRotPos.rot);
-
-                telemetry.addData("Robot Pos X: ", markerRotPos.x + robotRotPos.x);
-                telemetry.addData("Robot Pos Y: ", markerRotPos.y + robotRotPos.y);
-                telemetry.addData("Robot Rot: ", markerRotPos.rot + robotRotPos.rot);
-
             } else {
                 telemetry.addData("Pos", "Unknown");
             }

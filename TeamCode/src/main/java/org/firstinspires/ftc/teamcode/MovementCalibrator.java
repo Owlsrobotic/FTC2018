@@ -71,8 +71,8 @@ public class MovementCalibrator extends LinearOpMode {
     BNO055IMU imu;
 
     double     COUNTS_PER_MOTOR_REV    = 2240 ;
-    //Good Number: 0.51625
-    double     TRANSLATION_FACTOR    = 2.0 ;
+    //Good number: 0.51625
+    double     TRANSLATION_FACTOR    = 0.51625;
     double     WHEEL_DIAMETER_M   = 0.1016;
     double     COUNTS_PER_M         = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) /
             (WHEEL_DIAMETER_M * 3.1415);
@@ -80,7 +80,7 @@ public class MovementCalibrator extends LinearOpMode {
     double timeOutMillis = 3000;
     double threshold = 0.05;
     //Good Number: 0.04456049
-    double pValue = 1.0/30.0;
+    double pValue =  0.04456049;
 
     //Calibration Modes
     double pValueHighAngle = 60.0;

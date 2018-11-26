@@ -29,8 +29,32 @@
 
 package org.firstinspires.ftc.teamcode;
 
-public enum Constant
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.TouchSensor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+public class RobotUtil
 {
-    // color sensor
-    COLOR_WHITE, COLOR_GOLD
+    /**
+     * @param time time in milliseconds
+     */
+    public static void wait(double time)
+    {
+        try {
+            Thread.sleep((long)time);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * @param num number to round
+     * @param nearest the nearest neighboring number to round to
+     */
+    public static double round(double num, double nearest)
+    {
+        return (double)Math.round(num * nearest * 100) / (nearest * 100);
+    }
 }

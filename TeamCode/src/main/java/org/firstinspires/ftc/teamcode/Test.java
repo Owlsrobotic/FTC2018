@@ -31,7 +31,9 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.ServoController;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 
@@ -48,52 +50,27 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@TeleOp(name="Ethan's Autonomous Testing Grounds", group="Linear Opmode")
-public class AutonomousTesting extends LinearOpMode {
-
-    // Declare OpMode members.
+@TeleOp(name="tareq's ultimate testing grounds", group="Linear Opmode")
+public class Test extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
+    RobotController controller;
 
     @Override
     public void runOpMode() {
         telemetry.addData("Status", "Initialized");
         telemetry.update();
+
+        controller = new RobotController(this);
+
+        // wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset();
 
-        RobotController controller = new RobotController(this);
-
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-//            controller.rotateAngle(90);
-//            controller.moveDistanceForward(0.5);
-
-//            telemetry.addData("Has Localized?: ", controller.localize() != null);
-//            telemetry.addData("X Pos: ", controller.x);
-//            telemetry.addData("Y Pos: ", controller.y);
-//            telemetry.addData("Angle: ", controller.angle);
-
-//            PosRot phoneDisplacement = new PosRot(controller.phoneXDisplacementCenterM, controller.phoneYDisplacementCenterM, 0.0);
-//            phoneDisplacement = phoneDisplacement.rotate(-1.0 * controller.angle);
-//            telemetry.addData("X DIS: ", phoneDisplacement.x);
-//            telemetry.addData("Y DIS: ", phoneDisplacement.y);
-//
-//            telemetry.addData("Status", "Run Time: " + runtime.toString());
-//            telemetry.update();
-
-            controller.localize();
-            telemetry.addData("Bot X: ", controller.x);
-            telemetry.addData("Bot Y: ", controller.y);
-            telemetry.addData("Bot Rot: ", controller.angle);
-            controller.waitForUserInput();
-            controller.moveToLocation(new PosRot(1.0,1.0,0.0));
-            controller.rotateAngle(45.0 - controller.angle);
-            telemetry.addData("Bot X: ", controller.x);
-            telemetry.addData("Bot Y: ", controller.y);
-            telemetry.addData("Bot Rot: ", controller.angle);
-            controller.waitForUserInput();
-
-            break;
+            int[] color = controller.getARGB(controller.testColorSensor);
+            telemetry.addData("Color: ", controller.getColor(controller.testColorSensor));
+            telemetry.update();
         }
     }
 }

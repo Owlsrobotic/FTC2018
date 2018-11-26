@@ -66,10 +66,10 @@ public class RobotController {
     double[] fowardVector = {-1.0, 1.0, -1.0, 1.0};
     double[] rightRotateVector = {-1.0, -1.0, -1.0, -1.0};
 
-    private DcMotor backleft = null;
-    private DcMotor backright = null;
-    private DcMotor frontleft = null;
-    private DcMotor frontright = null;
+    public DcMotor backleft = null;
+    public DcMotor backright = null;
+    public DcMotor frontleft = null;
+    public DcMotor frontright = null;
 
     //Movement Calibration Stuff
     double COUNTS_PER_MOTOR_REV = 2240;

@@ -31,6 +31,7 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 
@@ -47,45 +48,39 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@TeleOp(name="Single Joystick Drive", group="Linear Opmode")
-public class SingleJoystickDrive extends LinearOpMode {
+@TeleOp(name="Autonomous Testing", group="Linear Opmode")
+public class AutonomousTesting extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
-    RobotController controller;
 
     @Override
     public void runOpMode() {
         telemetry.addData("Status", "Initialized");
         telemetry.update();
-
-        controller = new RobotController(this);
-        DriverConfiguration cfg = new DriverConfiguration(controller.frontright,
-                                                          controller.frontleft,
-                                                          controller.backright,
-                                                          controller.backleft,
-                                                          new int[]{-1, 1, -1, 1},
-                                                1.0);
-
-        // Wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset();
 
+        RobotController controller = new RobotController(this);
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-            // Collect input
-            double transPow = RobotUtil.round(gamepad2.left_stick_y, 0.1);
-            double rotPow = RobotUtil.round(gamepad2.left_stick_x, 0.1);
 
-            cfg.zeroPower();
-
-            // Assign translational values
-            cfg.addTransPower(transPow);
-
-            // Assign rotational values
-            cfg.addRotPower(rotPow);
-
-            cfg.startMotors();
+            controller.localize();
+            telemetry.addData("X: ", controller.x);
+            telemetry.addData("Y: ", controller.y);
+            telemetry.addData("Angle: ", controller.angle);
+            controller.waitForUserInput();
+//            controller.moveToLocation(new PosRot(0.57, 0.64, 0));
+//            telemetry.addData("X: ", controller.x);
+//            telemetry.addData("Y: ", controller.y);
+//            telemetry.addData("Angle: ", controller.angle);
+//            controller.waitForUserInput();
+            controller.rotateGlobal(45.0);
+            telemetry.addData("X: ", controller.x);
+            telemetry.addData("Y: ", controller.y);
+            telemetry.addData("Angle: ", controller.angle);
+            controller.waitForUserInput();
+            break;
         }
     }
 }

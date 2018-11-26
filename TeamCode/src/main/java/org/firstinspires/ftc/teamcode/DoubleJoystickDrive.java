@@ -64,10 +64,10 @@ public class DoubleJoystickDrive extends LinearOpMode {
         telemetry.update();
 
         controller = new RobotController(this);
-        DriverConfiguration cfg = new DriverConfiguration(controller.frontRight,
-                                                          controller.frontLeft,
-                                                          controller.backRight,
-                                                          controller.backLeft,
+        DriverConfiguration cfg = new DriverConfiguration(controller.frontright,
+                                                          controller.frontleft,
+                                                          controller.backright,
+                                                          controller.backleft,
                                                           new int[]{-1, 1, -1, 1},
                                                 1.0);
 

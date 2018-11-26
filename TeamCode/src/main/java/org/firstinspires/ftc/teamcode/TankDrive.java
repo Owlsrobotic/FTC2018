@@ -68,12 +68,12 @@ public class TankDrive extends LinearOpMode {
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
             // Left side
-            controller.backLeft.setPower(1.0 * RobotUtil.round(gamepad2.left_stick_y, 0.1));
-            controller.frontLeft.setPower(1.0 * RobotUtil.round(gamepad2.left_stick_y, 0.1));
+            controller.backleft.setPower(1.0 * RobotUtil.round(gamepad2.left_stick_y, 0.1));
+            controller.frontleft.setPower(1.0 * RobotUtil.round(gamepad2.left_stick_y, 0.1));
 
             // Right side
-            controller.backRight.setPower(-1.0 * RobotUtil.round(gamepad2.right_stick_y, 0.1));
-            controller.frontRight.setPower(-1.0 * RobotUtil.round(gamepad2.right_stick_y, 0.1));
+            controller.backright.setPower(-1.0 * RobotUtil.round(gamepad2.right_stick_y, 0.1));
+            controller.frontright.setPower(-1.0 * RobotUtil.round(gamepad2.right_stick_y, 0.1));
 
             telemetry.update();
         }

@@ -48,7 +48,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@TeleOp(name="Ethan's Autonomous Testing Grounds", group="Linear Opmode")
+@TeleOp(name="Autonomous Testing", group="Linear Opmode")
 public class AutonomousTesting extends LinearOpMode {
 
     // Declare OpMode members.
@@ -62,37 +62,24 @@ public class AutonomousTesting extends LinearOpMode {
         runtime.reset();
 
         RobotController controller = new RobotController(this);
-
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
-//            controller.rotateAngle(90);
-//            controller.moveDistanceForward(0.5);
-
-//            telemetry.addData("Has Localized?: ", controller.localize() != null);
-//            telemetry.addData("X Pos: ", controller.x);
-//            telemetry.addData("Y Pos: ", controller.y);
-//            telemetry.addData("Angle: ", controller.angle);
-
-//            PosRot phoneDisplacement = new PosRot(controller.phoneXDisplacementCenterM, controller.phoneYDisplacementCenterM, 0.0);
-//            phoneDisplacement = phoneDisplacement.rotate(-1.0 * controller.angle);
-//            telemetry.addData("X DIS: ", phoneDisplacement.x);
-//            telemetry.addData("Y DIS: ", phoneDisplacement.y);
-//
-//            telemetry.addData("Status", "Run Time: " + runtime.toString());
-//            telemetry.update();
 
             controller.localize();
-            telemetry.addData("Bot X: ", controller.x);
-            telemetry.addData("Bot Y: ", controller.y);
-            telemetry.addData("Bot Rot: ", controller.angle);
+            telemetry.addData("X: ", controller.x);
+            telemetry.addData("Y: ", controller.y);
+            telemetry.addData("Angle: ", controller.angle);
             controller.waitForUserInput();
-            controller.moveToLocation(new PosRot(1.0,1.0,0.0));
-            controller.rotateAngle(45.0 - controller.angle);
-            telemetry.addData("Bot X: ", controller.x);
-            telemetry.addData("Bot Y: ", controller.y);
-            telemetry.addData("Bot Rot: ", controller.angle);
+//            controller.moveToLocation(new PosRot(0.57, 0.64, 0));
+//            telemetry.addData("X: ", controller.x);
+//            telemetry.addData("Y: ", controller.y);
+//            telemetry.addData("Angle: ", controller.angle);
+//            controller.waitForUserInput();
+            controller.rotateGlobal(45.0);
+            telemetry.addData("X: ", controller.x);
+            telemetry.addData("Y: ", controller.y);
+            telemetry.addData("Angle: ", controller.angle);
             controller.waitForUserInput();
-
             break;
         }
     }

@@ -77,19 +77,26 @@ public class MovementCalibrator extends LinearOpMode {
     double     COUNTS_PER_M         = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) /
             (WHEEL_DIAMETER_M * 3.1415);
 
-    double timeOutMillis = 3000;
-    double threshold = 0.05;
+    double timeOutMillis = 30000;
+    double threshold = 0.2;
     //Good Number: 0.04456049
-    double pValue = 1.0/30.0;
+    double pValue = 1.0/25.0;
+    double iValue = 1.0/10.0;
+    double dValue = 1.0/210.0;
 
     //Calibration Modes
-    double pValueHighAngle = 60.0;
-    double pValueLowAngle = 0.0;
+    double pValueCalibrate = 25.0;
+    double iValueCalibrate = 10.0;
+    double dValueCalibrate = 210.0;
+    double windupThreshold = 5.0;
+
     double translateFactorHigh = 4.0;
     double translateFactorLow = 0.0;
 
     int TRANSLATION_MODE = 0;
     int PVALUE_MODE = 1;
+    int IVALUE_MODE = 2;
+    int DVALUE_MODE = 3;
     int CURRENT_MODE = TRANSLATION_MODE;
 
     @Override
@@ -128,8 +135,11 @@ public class MovementCalibrator extends LinearOpMode {
         while (opModeIsActive()) {
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Controls: ", "DPAD_UP => Translation factor calibrate ... DPAD_LEFT => PVALUE calibrate ... RB => Too high ... LB => Too low");
+            telemetry.addData("Controls: ", "DPAD_DOWN => IVALUE calibrate ... DPAD_RIGHT => DVALUE calibrate ... RB => Too high ... LB => Too low");
             telemetry.addData("Translation Factor: ", TRANSLATION_FACTOR);
-            telemetry.addData("P VALUE: ", pValue);
+            telemetry.addData("P VALUE CALIBRATE: ", pValueCalibrate);
+            telemetry.addData("I VALUE CALIBRATE: ", iValueCalibrate);
+            telemetry.addData("D VALUE CALIBRATE: ", dValueCalibrate);
             telemetry.addData("CURRENT MODE: ", CURRENT_MODE);
 
             if (gamepad1.dpad_up) {
@@ -138,42 +148,62 @@ public class MovementCalibrator extends LinearOpMode {
             if (gamepad1.dpad_left) {
                 CURRENT_MODE = PVALUE_MODE;
             }
+            if (gamepad1.dpad_down) {
+                CURRENT_MODE = IVALUE_MODE;
+            }
+            if (gamepad1.dpad_right) {
+                CURRENT_MODE = DVALUE_MODE;
+            }
 
             //Current value is too high
             if (gamepad1.right_bumper) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
                 if (CURRENT_MODE == TRANSLATION_MODE) {
                     translateFactorHigh = (translateFactorHigh + translateFactorLow) / 2;
                     TRANSLATION_FACTOR = (translateFactorHigh + translateFactorLow) / 2;
                     COUNTS_PER_M = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) / (WHEEL_DIAMETER_M * 3.1415);
                 }
                 if (CURRENT_MODE == PVALUE_MODE) {
-                    pValueHighAngle = (pValueHighAngle + pValueLowAngle) / 2;
-                    double maxPowerAngle = (pValueHighAngle + pValueLowAngle) / 2;
-                    pValue = 1.0/maxPowerAngle;
+                    pValueCalibrate += 1.0;
+                    pValue = 1.0/pValueCalibrate;
+                }
+                if (CURRENT_MODE == IVALUE_MODE) {
+                    iValueCalibrate += 1.0;
+                    iValue = 1.0/iValueCalibrate;
+                }
+                if (CURRENT_MODE == DVALUE_MODE) {
+                    dValueCalibrate += 1.0;
+                    dValue = 1.0/dValueCalibrate;
+                }
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
 
             //Current value is too low
             if (gamepad1.left_bumper) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
                 if (CURRENT_MODE == TRANSLATION_MODE) {
                     translateFactorLow = (translateFactorHigh + translateFactorLow) / 2;
                     TRANSLATION_FACTOR = (translateFactorHigh + translateFactorLow) / 2;
                     COUNTS_PER_M = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) / (WHEEL_DIAMETER_M * 3.1415);
                 }
                 if (CURRENT_MODE == PVALUE_MODE) {
-                    pValueLowAngle = (pValueHighAngle + pValueLowAngle) / 2;
-                    double maxPowerAngle = (pValueHighAngle + pValueLowAngle) / 2;
-                    pValue = 1.0/maxPowerAngle;
+                    pValueCalibrate -= 1.0;
+                    pValue = 1.0/pValueCalibrate;
+                }
+                if (CURRENT_MODE == IVALUE_MODE) {
+                    iValueCalibrate -= 1.0;
+                    iValue = 1.0/iValueCalibrate;
+                }
+                if (CURRENT_MODE == DVALUE_MODE) {
+                    dValueCalibrate -= 1.0;
+                    dValue = 1.0/dValueCalibrate;
+                }
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
 
@@ -229,26 +259,39 @@ public class MovementCalibrator extends LinearOpMode {
             }
 
             if (gamepad1.x) {
-                //Reset measurements
-                imu.initialize(parameters);
                 //In degrees
-                double angle = 90.0;
+                double angleChange = 90.0;
 
                 double initialTime = System.currentTimeMillis();
 
-                double initialZ = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
-                double finalZ = initialZ - angle;
+                double initialZ = getRelativeAngle();
+                double finalZ = initialZ - angleChange;
+
+                long lastSampleTime = System.currentTimeMillis();
+                double errorSum = 0.0;
+                double previousError = 0.0;
 
                 double currentZ = initialZ;
-                while (Math.abs(currentZ - finalZ) > threshold && (System.currentTimeMillis() - initialTime) < timeOutMillis) {
-                    currentZ = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+                while (Math.abs(normalizeAngle(currentZ - finalZ)) > threshold && (System.currentTimeMillis() - initialTime) < timeOutMillis) {
+                    if (gamepad1.y) {
+                        break;
+                    }
+                    currentZ = getRelativeAngle();
 
-                    double error = currentZ - finalZ;
+                    double error = normalizeAngle(currentZ - finalZ);
 
-                    telemetry.addData("Error: ", error);
-                    telemetry.update();
+                    //Time Delta in Seconds
+                    double timeDelta = (System.currentTimeMillis() - lastSampleTime) / 1000.0;
+                    //Error Derivative in degrees/sec
+                    double errorDerivative = (error - previousError) / timeDelta;
+                    //Antiwind up
+                    if (Math.abs(error) < windupThreshold) {
+                        errorSum += error * (timeDelta);
+                    }
+                    lastSampleTime = System.currentTimeMillis();
+                    previousError = error;
 
-                    double power = error * pValue;
+                    double power = error * pValue + errorDerivative * dValue + errorSum * iValue;
                     if (power < 0 && Math.abs(power) < 0.1) {
                         power = -0.1;
                     }
@@ -261,6 +304,12 @@ public class MovementCalibrator extends LinearOpMode {
                     frontleft.setPower(power * rightRotateVector[2]);
                     frontright.setPower(power * rightRotateVector[3]);
 
+                    telemetry.addData("Current Angle: ", getRelativeAngle());
+                    telemetry.addData("Target Angle: ", finalZ);
+                    telemetry.addData("Error: ", finalZ);
+                    telemetry.addData("Error Derivative: ", finalZ);
+                    telemetry.addData("Error Sum: ", finalZ);
+                    telemetry.update();
                 }
 
                 backleft.setPower(0);
@@ -272,5 +321,19 @@ public class MovementCalibrator extends LinearOpMode {
 
             telemetry.update();
         }
+    }
+
+    //Normalize angle to be in -180 to 180
+    public double normalizeAngle(double angle) {
+        double sign = (angle < 0) ? -1.0 : 1.0;
+        double magnitude = Math.abs(angle) % 360;
+        if (magnitude > 180) {
+            return sign * (magnitude - 360);
+        } else {
+            return sign * magnitude;
+        }
+    }
+    public double getRelativeAngle() {
+        return imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
     }
 }

@@ -28,7 +28,11 @@ import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackableDefaultListener;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
 
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -67,11 +71,16 @@ public class RobotController {
     double     WHEEL_DIAMETER_M   = 0.1016;
     double     COUNTS_PER_M         = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) /
             (WHEEL_DIAMETER_M * 3.1415);
+    double power = 0.3;
 
-    double timeOutMillis = 3000;
-    double threshold = 0.05;
+    double timeOutMillis = 10000;
+    double threshold = 0.1;
     //Good Number: 0.04456049
-    double pValue = 0.04456049;
+    double pValue = 1.0/33.0;
+    double iValue = 1.0/30.0;
+    double dValue = 1.0/210.0;
+    double windupThreshold = 5.0;
+
 
     //Vuforia Stuff
     OpenGLMatrix lastLocation = null;
@@ -82,7 +91,7 @@ public class RobotController {
     double WALL_DISTANCE_FROM_ORIGIN_M = FIELD_LENGTH_M / 2.0;
 
     double phoneXDisplacementCenterM = 0.0;
-    double phoneYDisplacementCenterM = 0.208;
+    double phoneYDisplacementCenterM = 0.1825;
 
     HashMap<String, PosRot> markerPosition;
     List<VuforiaTrackable> allTrackables = new ArrayList<VuforiaTrackable>();
@@ -95,6 +104,11 @@ public class RobotController {
     //IMU Stuff
     BNO055IMU imu;
     BNO055IMU.Parameters imuParameters = new BNO055IMU.Parameters();
+
+    //Color Training Data
+    ArrayList<ColorDataTrain> trainingSet = new ArrayList<>();
+    ColorSensor color;
+    int k = 3;
 
     public RobotController(LinearOpMode context) {
         this.context = context;
@@ -156,6 +170,19 @@ public class RobotController {
 
         imu = hmap.get(BNO055IMU.class, "imu");
         imu.initialize(imuParameters);
+
+        //Initialize Color Training Data
+        color = hmap.colorSensor.get("color");
+
+        try {
+            FileInputStream fis = hmap.appContext.openFileInput("ColorCalibration.ser");
+            ObjectInputStream is = new ObjectInputStream(fis);
+            trainingSet = (ArrayList<ColorDataTrain>) is.readObject();
+            is.close();
+            fis.close();
+        } catch (Exception e){
+            e.printStackTrace();
+        }
     }
 
     public void waitForUserInput() {
@@ -169,38 +196,56 @@ public class RobotController {
         context.telemetry.clearAll();
     }
 
+    //Normalize angle to be in -180 to 180
+    public double normalizeAngle(double angle) {
+        double sign = (angle < 0) ? -1.0 : 1.0;
+        double magnitude = Math.abs(angle) % 360;
+        if (magnitude > 180) {
+             return sign * (magnitude - 360);
+        } else {
+            return sign * magnitude;
+        }
+    }
+
+    //Returns relative angle change w/ O deg being time of initializing
+    public double getRelativeAngle() {
+        return imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+    }
+
     /**
      * Rotates the robot.
      *
      * @param angleChange angle in degrees
      */
     public void rotateAngle(double angleChange) {
-        angle += angleChange;
-
-        //Normalize angle to be in -180 to 180
-        double sign = (angleChange < 0) ? -1.0 : 1.0;
-        double magnitude = Math.abs(angleChange) % 360;
-        if (magnitude > 180) {
-            angleChange = sign * (magnitude - 360);
-        } else {
-            angleChange = sign * magnitude;
-        }
-
-        //Reset measurements
-        imu.initialize(imuParameters);
-
+        angleChange = normalizeAngle(angleChange);
         double initialTime = System.currentTimeMillis();
 
-        double initialZ = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+        double initialZ = getRelativeAngle();
         double finalZ = initialZ - angleChange;
 
+        long lastSampleTime = System.currentTimeMillis();
+        double errorSum = 0.0;
+        double previousError = 0.0;
+
         double currentZ = initialZ;
-        while (Math.abs(currentZ - finalZ) > threshold && (System.currentTimeMillis() - initialTime) < timeOutMillis) {
-            currentZ = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+        while (Math.abs(normalizeAngle(currentZ - finalZ)) > threshold && (System.currentTimeMillis() - initialTime) < timeOutMillis) {
+            currentZ = getRelativeAngle();
 
-            double error = currentZ - finalZ;
+            double error = normalizeAngle(currentZ - finalZ);
 
-            double power = error * pValue;
+            //Time Delta in Seconds
+            double timeDelta = (System.currentTimeMillis() - lastSampleTime) / 1000.0;
+            //Error Derivative in degrees/sec
+            double errorDerivative = (error - previousError) / timeDelta;
+            //Antiwind up
+            if (Math.abs(error) < windupThreshold) {
+                errorSum += error * (timeDelta);
+            }
+            lastSampleTime = System.currentTimeMillis();
+            previousError = error;
+
+            double power = error * pValue + errorDerivative * dValue + errorSum * iValue;
             if (power < 0 && Math.abs(power) < 0.1) {
                 power = -0.1;
             }
@@ -219,6 +264,15 @@ public class RobotController {
         backright.setPower(0);
         frontleft.setPower(0);
         frontright.setPower(0);
+
+        //Add angle change by gyro
+        angle += (initialZ - getRelativeAngle());
+//        angle += angleChange;
+
+    }
+
+    public void rotateGlobal(double globalAngle) {
+        rotateAngle(globalAngle - angle);
     }
 
     /**
@@ -231,7 +285,6 @@ public class RobotController {
         x += Math.cos(Math.toRadians(cartesianAngle));
         y += Math.sin(Math.toRadians(cartesianAngle));
 
-        double power = 0.5;
         int distanceInTicks = (int)(distance * COUNTS_PER_M);
 
         int backleftTargetPos = backleft.getCurrentPosition() + (int)(fowardVector[0] * distanceInTicks);
@@ -271,30 +324,50 @@ public class RobotController {
         frontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
     }
 
-    /**
-     * Gets color value.
-     *
-     * @param tries number of trials
-     * @return gold or white
-     */
-    public Constant getRawColor(ColorSensor sensor, int tries) {
-        int threshold = (int) 255 / 2;
-        int whiteCount = 0;
-        int goldCount = 0;
+    public int getColor() {
+        //Create Color Buffer
+        final float[] hslValue = {0F, 0F, 0F};
+        //Load in color data
+        Color.RGBToHSV((int) (color.red() * 255),
+                (int) (color.green() * 255),
+                (int) (color.blue() * 255),
+                hslValue);
+        //Copy the data and then sort the dataset by its Euclidean distance to the current color
+        final float[] hslCopy = {hslValue[0], hslValue[1], hslValue[2]};
+        Collections.sort(trainingSet, new Comparator<ColorDataTrain>() {
+            @Override
+            public int compare(ColorDataTrain e1, ColorDataTrain e2) {
+                float[] hsl1 = e1.hsl;
+                float[] hsl2 = e2.hsl;
 
-        for (int i = 0; i < tries; i++)
-        {
-            int val = sensor.blue();
+                double distance1 = Math.sqrt(Math.pow(hsl1[0] - hslCopy[0], 2) + Math.pow(hsl1[1] - hslCopy[1], 2)+ Math.pow(hsl1[2] - hslCopy[2], 2));
+                double distance2 = Math.sqrt(Math.pow(hsl2[0] - hslCopy[0], 2) + Math.pow(hsl2[1] - hslCopy[1], 2)+ Math.pow(hsl2[2] - hslCopy[2], 2));
+                return Double.compare(distance1, distance2);
+            }
+        });
 
-            if (val > threshold) { whiteCount++; }
-            else { goldCount++; }
+        int goldHits = 0;
+        int whiteHits = 0;
+        int emptyHits = 0;
+        for (int i = 0; i < k; i++) {
+            if (trainingSet.get(i).color == ColorDataTrain.COLOR_NONE) {
+                emptyHits++;
+            } else if (trainingSet.get(i).color == ColorDataTrain.COLOR_GOLD) {
+                goldHits++;
+            } else if (trainingSet.get(i).color == ColorDataTrain.COLOR_WHITE) {
+                whiteHits++;
+            }
+        }
+        //Start with classification as empty then filter down
+        int classification = ColorDataTrain.COLOR_NONE;
+        if (goldHits > emptyHits && goldHits > whiteHits) {
+            classification = ColorDataTrain.COLOR_GOLD;
+        }
+        if (whiteHits > emptyHits && whiteHits > goldHits) {
+            classification = ColorDataTrain.COLOR_WHITE;
         }
 
-        if (whiteCount > goldCount) {
-            return Constant.COLOR_WHITE;
-        } else {
-            return Constant.COLOR_GOLD;
-        }
+        return classification;
     }
 
     //Move to PosRot location but disregards the rotation data
@@ -311,13 +384,13 @@ public class RobotController {
 //        context.telemetry.addData("Target X: ", posRot.x);
 //        context.telemetry.addData("Target Y: ", posRot.y);
 
-        waitForUserInput();
+//        waitForUserInput();
 
         //Point robot to the endpoint ... move there ... update robot's internal location
         double distance = Math.sqrt(Math.pow(posRot.y - y, 2) + Math.pow(posRot.x - x, 2));
         rotateAngle(angleChange);
 
-        waitForUserInput();
+//        waitForUserInput();
 
         moveDistanceForward(distance);
 
@@ -353,7 +426,9 @@ public class RobotController {
             PosRot markerRotPos = markerPosition.get(trackerName);
 
             PosRot robotRotPos = new PosRot(tX / 1000.0, tZ / 1000.0, rY);
+            //Get Camera Displacement Relative To Marker Center
             robotRotPos = robotRotPos.rotate(-1.0 * robotRotPos.rot);
+            //Get Camera Displacement Relative To Marker Aligned To Global Field
             robotRotPos = robotRotPos.rotate(-1.0 * markerRotPos.rot);
 
             //Global position(meters) and global angle(degrees) of phone

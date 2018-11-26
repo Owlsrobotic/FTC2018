@@ -66,11 +66,5 @@ public class Test extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
-        // run until the end of the match (driver presses STOP)
-        while (opModeIsActive()) {
-            int[] color = controller.getARGB(controller.testColorSensor);
-            telemetry.addData("Color: ", controller.getColor(controller.testColorSensor));
-            telemetry.update();
-        }
     }
 }

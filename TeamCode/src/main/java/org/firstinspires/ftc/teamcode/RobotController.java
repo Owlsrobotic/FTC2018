@@ -45,6 +45,16 @@ import java.util.List;
  */
 
 public class RobotController {
+    //Localization Data in meters and degrees
+    public double x = 0.0;
+    public double y = 0.0;
+    public double angle = 0.0;
+
+    // color sensor
+    public ColorSensor colorSensor;
+    public int[] WHITE_RGB = {255, 255, 255};
+    public int[] GOLD_RGB = {255, 215, 0};
+
     // Sensors
     public ColorSensor testColorSensor;
     public DigitalChannel testTouchSensor;
@@ -53,7 +63,7 @@ public class RobotController {
     private HardwareMap hmap;
 
     //Movement Stuff
-    double[] fowardVector = {-1.0,1.0,-1.0,1.0};
+    double[] fowardVector = {-1.0, 1.0, -1.0, 1.0};
     double[] rightRotateVector = {-1.0, -1.0, -1.0, -1.0};
 
     private DcMotor backleft = null;
@@ -62,20 +72,20 @@ public class RobotController {
     private DcMotor frontright = null;
 
     //Movement Calibration Stuff
-    double     COUNTS_PER_MOTOR_REV    = 2240 ;
+    double COUNTS_PER_MOTOR_REV = 2240;
     //Good Number: 0.51625
-    double     TRANSLATION_FACTOR    = 0.5 ;
-    double     WHEEL_DIAMETER_M   = 0.1016;
-    double     COUNTS_PER_M         = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) /
+    double TRANSLATION_FACTOR = 0.5;
+    double WHEEL_DIAMETER_M = 0.1016;
+    double COUNTS_PER_M = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) /
             (WHEEL_DIAMETER_M * 3.1415);
     double power = 0.3;
 
     double timeOutMillis = 10000;
     double threshold = 0.1;
     //Good Number: 0.04456049
-    double pValue = 1.0/33.0;
-    double iValue = 1.0/30.0;
-    double dValue = 1.0/210.0;
+    double pValue = 1.0 / 33.0;
+    double iValue = 1.0 / 30.0;
+    double dValue = 1.0 / 210.0;
     double windupThreshold = 5.0;
 
 
@@ -97,6 +107,10 @@ public class RobotController {
     String redPerimeterKey = "RedPerimeter";
     String frontPerimeterKey = "FrontPerimeter";
     String backPerimeterKey = "BackPerimeter";
+
+    //IMU Stuff
+    BNO055IMU imu;
+    BNO055IMU.Parameters imuParameters = new BNO055IMU.Parameters();
 
     // Servos
     public CRServo testServo;
@@ -151,13 +165,13 @@ public class RobotController {
         VuforiaTrackable bluePerimeter = roverRuckus.get(0);
         bluePerimeter.setName(bluePerimeterKey);
 
-        VuforiaTrackable redPerimeter  = roverRuckus.get(1);
+        VuforiaTrackable redPerimeter = roverRuckus.get(1);
         redPerimeter.setName(redPerimeterKey);
 
-        VuforiaTrackable frontPerimeter  = roverRuckus.get(2);
+        VuforiaTrackable frontPerimeter = roverRuckus.get(2);
         frontPerimeter.setName(frontPerimeterKey);
 
-        VuforiaTrackable backPerimeter  = roverRuckus.get(3);
+        VuforiaTrackable backPerimeter = roverRuckus.get(3);
         backPerimeter.setName(backPerimeterKey);
 
         /** For convenience, gather together all the trackable objects in one easily-iterable collection */
@@ -166,9 +180,9 @@ public class RobotController {
 
         //Initialize IMU Stuff
         imuParameters.loggingEnabled = true;
-        imuParameters.loggingTag     = "IMU";
-        imuParameters.angleUnit           = BNO055IMU.AngleUnit.DEGREES;
-        imuParameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
+        imuParameters.loggingTag = "IMU";
+        imuParameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
+        imuParameters.accelUnit = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
         imuParameters.calibrationDataFile = "IMUCalibration.json";
         imuParameters.accelerationIntegrationAlgorithm = new JustLoggingAccelerationIntegrator();
 
@@ -184,7 +198,7 @@ public class RobotController {
             trainingSet = (ArrayList<ColorDataTrain>) is.readObject();
             is.close();
             fis.close();
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -205,7 +219,7 @@ public class RobotController {
         double sign = (angle < 0) ? -1.0 : 1.0;
         double magnitude = Math.abs(angle) % 360;
         if (magnitude > 180) {
-             return sign * (magnitude - 360);
+            return sign * (magnitude - 360);
         } else {
             return sign * magnitude;
         }
@@ -289,12 +303,12 @@ public class RobotController {
         x += Math.cos(Math.toRadians(cartesianAngle));
         y += Math.sin(Math.toRadians(cartesianAngle));
 
-        int distanceInTicks = (int)(distance * COUNTS_PER_M);
+        int distanceInTicks = (int) (distance * COUNTS_PER_M);
 
-        int backleftTargetPos = backleft.getCurrentPosition() + (int)(fowardVector[0] * distanceInTicks);
-        int backrightTargetPos = backright.getCurrentPosition() + (int)(fowardVector[1] * distanceInTicks);
-        int frontleftTargetPos = frontleft.getCurrentPosition() + (int)(fowardVector[2] * distanceInTicks);
-        int frontrightTargetPos = frontright.getCurrentPosition() + (int)(fowardVector[3] * distanceInTicks);
+        int backleftTargetPos = backleft.getCurrentPosition() + (int) (fowardVector[0] * distanceInTicks);
+        int backrightTargetPos = backright.getCurrentPosition() + (int) (fowardVector[1] * distanceInTicks);
+        int frontleftTargetPos = frontleft.getCurrentPosition() + (int) (fowardVector[2] * distanceInTicks);
+        int frontrightTargetPos = frontright.getCurrentPosition() + (int) (fowardVector[3] * distanceInTicks);
 
         backleft.setTargetPosition(backleftTargetPos);
         backright.setTargetPosition(backrightTargetPos);
@@ -321,13 +335,14 @@ public class RobotController {
         frontleft.setPower(0);
         frontright.setPower(0);
 
-    /**
-     * Gets color value.
-     *
-     * @param tries number of trials
-     * @return gold or white
-     */
-    public int getColor() {
+        backleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
+
+    public int getColor () {
         //Create Color Buffer
         final float[] hslValue = {0F, 0F, 0F};
         //Load in color data
@@ -343,8 +358,8 @@ public class RobotController {
                 float[] hsl1 = e1.hsl;
                 float[] hsl2 = e2.hsl;
 
-                double distance1 = Math.sqrt(Math.pow(hsl1[0] - hslCopy[0], 2) + Math.pow(hsl1[1] - hslCopy[1], 2)+ Math.pow(hsl1[2] - hslCopy[2], 2));
-                double distance2 = Math.sqrt(Math.pow(hsl2[0] - hslCopy[0], 2) + Math.pow(hsl2[1] - hslCopy[1], 2)+ Math.pow(hsl2[2] - hslCopy[2], 2));
+                double distance1 = Math.sqrt(Math.pow(hsl1[0] - hslCopy[0], 2) + Math.pow(hsl1[1] - hslCopy[1], 2) + Math.pow(hsl1[2] - hslCopy[2], 2));
+                double distance2 = Math.sqrt(Math.pow(hsl2[0] - hslCopy[0], 2) + Math.pow(hsl2[1] - hslCopy[1], 2) + Math.pow(hsl2[2] - hslCopy[2], 2));
                 return Double.compare(distance1, distance2);
             }
         });
@@ -374,7 +389,7 @@ public class RobotController {
     }
 
     //Move to PosRot location but disregards the rotation data
-    public void moveToLocation(PosRot posRot) {
+    public void moveToLocation (PosRot posRot){
         double finalAngle = Math.toDegrees(Math.atan2(posRot.y - y, posRot.x - x));
         finalAngle = PosRot.convertToFieldAngle(finalAngle);
 
@@ -401,9 +416,10 @@ public class RobotController {
     /**
      * Gets state of touch sensor.
      */
-    public boolean isTouchSensorPressed(DigitalChannel touchSensor) {
+    public boolean isTouchSensorPressed (DigitalChannel touchSensor){
         return !touchSensor.getState();
     }
+
     public PosRot localize() {
         //How far the image is relative to the camera(in millimeters)
         double tX = 0.0;
@@ -451,10 +467,15 @@ public class RobotController {
 
             return new PosRot(x, y, angle);
 
+        } else {
+            return null;
+        }
+    }
+
     /**
      * Powers a CRServo.
      */
-    public void powerCRServo(CRServo servo, double pow) {
+    public void powerCRServo (CRServo servo,double pow){
         servo.setDirection(CRServo.Direction.FORWARD);
         servo.setPower(pow);
     }

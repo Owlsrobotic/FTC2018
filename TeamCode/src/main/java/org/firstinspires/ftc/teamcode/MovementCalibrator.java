@@ -71,8 +71,8 @@ public class MovementCalibrator extends LinearOpMode {
     BNO055IMU imu;
 
     double     COUNTS_PER_MOTOR_REV    = 2240 ;
-    //Good number: 0.51625
-    double     TRANSLATION_FACTOR    = 0.51625;
+    //Good Number: 0.51625
+    double     TRANSLATION_FACTOR    = 2.0 ;
     double     WHEEL_DIAMETER_M   = 0.1016;
     double     COUNTS_PER_M         = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) /
             (WHEEL_DIAMETER_M * 3.1415);
@@ -98,6 +98,8 @@ public class MovementCalibrator extends LinearOpMode {
     int IVALUE_MODE = 2;
     int DVALUE_MODE = 3;
     int CURRENT_MODE = TRANSLATION_MODE;
+
+    double angleChange = 90.0;
 
     @Override
     public void runOpMode() {
@@ -141,6 +143,7 @@ public class MovementCalibrator extends LinearOpMode {
             telemetry.addData("I VALUE CALIBRATE: ", iValueCalibrate);
             telemetry.addData("D VALUE CALIBRATE: ", dValueCalibrate);
             telemetry.addData("CURRENT MODE: ", CURRENT_MODE);
+            telemetry.addData("ANGLE CHANGE: ", angleChange);
 
             if (gamepad1.dpad_up) {
                 CURRENT_MODE = TRANSLATION_MODE;
@@ -153,6 +156,22 @@ public class MovementCalibrator extends LinearOpMode {
             }
             if (gamepad1.dpad_right) {
                 CURRENT_MODE = DVALUE_MODE;
+            }
+            if (gamepad1.right_trigger > 0.1) {
+                angleChange += 1.0;
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (gamepad1.left_trigger > 0.1) {
+                angleChange -= 1.0;
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
 
             //Current value is too high
@@ -224,43 +243,42 @@ public class MovementCalibrator extends LinearOpMode {
                 int frontleftTargetPos = frontleft.getCurrentPosition() + (int)(fowardVector[2] * distanceInTicks);
                 int frontrightTargetPos = frontright.getCurrentPosition() + (int)(fowardVector[3] * distanceInTicks);
 
-                    backleft.setTargetPosition(backleftTargetPos);
-                    backright.setTargetPosition(backrightTargetPos);
-                    frontleft.setTargetPosition(frontleftTargetPos);
-                    frontright.setTargetPosition(frontrightTargetPos);
+                backleft.setTargetPosition(backleftTargetPos);
+                backright.setTargetPosition(backrightTargetPos);
+                frontleft.setTargetPosition(frontleftTargetPos);
+                frontright.setTargetPosition(frontrightTargetPos);
 
-                    backleft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    backright.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    frontleft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-                    frontright.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                backleft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                backright.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                frontleft.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+                frontright.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
-                    backleft.setPower(power);
-                    backright.setPower(power);
-                    frontleft.setPower(power);
-                    frontright.setPower(power);
+                backleft.setPower(power);
+                backright.setPower(power);
+                frontleft.setPower(power);
+                frontright.setPower(power);
 
-                    while (backleft.isBusy() && backright.isBusy() && frontleft.isBusy() && frontright.isBusy()) {
-                        //Do Nothing
-                    }
-
-
-                    backleft.setPower(0);
-                    backright.setPower(0);
-                    frontleft.setPower(0);
-                    frontright.setPower(0);
+                while (backleft.isBusy() && backright.isBusy() && frontleft.isBusy() && frontright.isBusy()) {
+                    //Do Nothing
+                }
 
 
-                    backleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-                    backright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-                    frontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-                    frontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                backleft.setPower(0);
+                backright.setPower(0);
+                frontleft.setPower(0);
+                frontright.setPower(0);
+
+
+                backleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                backright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                frontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+                frontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
 
             }
 
             if (gamepad1.x) {
                 //In degrees
-                double angleChange = 90.0;
 
                 double initialTime = System.currentTimeMillis();
 
@@ -292,12 +310,12 @@ public class MovementCalibrator extends LinearOpMode {
                     previousError = error;
 
                     double power = error * pValue + errorDerivative * dValue + errorSum * iValue;
-                    if (power < 0 && Math.abs(power) < 0.1) {
-                        power = -0.1;
-                    }
-                    if (power > 0 && Math.abs(power) < 0.1) {
-                        power = 0.1;
-                    }
+//                    if (power < 0 && Math.abs(power) < 0.1) {
+//                        power = -0.1;
+//                    }
+//                    if (power > 0 && Math.abs(power) < 0.1) {
+//                        power = 0.1;
+//                    }
 
                     backleft.setPower(power * rightRotateVector[0]);
                     backright.setPower(power * rightRotateVector[1]);
@@ -322,6 +340,7 @@ public class MovementCalibrator extends LinearOpMode {
             telemetry.update();
         }
     }
+
 
     //Normalize angle to be in -180 to 180
     public double normalizeAngle(double angle) {

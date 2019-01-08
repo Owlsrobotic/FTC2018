@@ -63,24 +63,12 @@ public class AutonomousTesting extends LinearOpMode {
 
         RobotController controller = new RobotController(this);
         // run until the end of the match (driver presses STOP)
-        while (opModeIsActive()) {
+        if (opModeIsActive()) {
 
             controller.localize();
-            telemetry.addData("X: ", controller.x);
-            telemetry.addData("Y: ", controller.y);
-            telemetry.addData("Angle: ", controller.angle);
-            controller.waitForUserInput();
-//            controller.moveToLocation(new PosRot(0.57, 0.64, 0));
-//            telemetry.addData("X: ", controller.x);
-//            telemetry.addData("Y: ", controller.y);
-//            telemetry.addData("Angle: ", controller.angle);
-//            controller.waitForUserInput();
-            controller.rotateGlobal(45.0);
-            telemetry.addData("X: ", controller.x);
-            telemetry.addData("Y: ", controller.y);
-            telemetry.addData("Angle: ", controller.angle);
-            controller.waitForUserInput();
-            break;
+            controller.moveToLocationTiles(2, 2);
+            controller.moveToLocationTiles(-0.5, 2);
+            controller.moveToLocationTiles(-2.5, 0);
         }
     }
 }

@@ -78,13 +78,13 @@ public class RobotController {
     double WHEEL_DIAMETER_M = 0.1016;
     double COUNTS_PER_M = (COUNTS_PER_MOTOR_REV * TRANSLATION_FACTOR) /
             (WHEEL_DIAMETER_M * 3.1415);
-    double power = 0.3;
+    double power = 0.5;
 
     double timeOutMillis = 10000;
     double threshold = 0.1;
     //Good Number: 0.04456049
-    double pValue = 1.0 / 33.0;
-    double iValue = 1.0 / 30.0;
+    double pValue = 1.0 / 25.0;
+    double iValue = 1.0 / 10.0;
     double dValue = 1.0 / 210.0;
     double windupThreshold = 5.0;
 
@@ -96,6 +96,7 @@ public class RobotController {
 
     double FIELD_LENGTH_M = 3.6576;
     double WALL_DISTANCE_FROM_ORIGIN_M = FIELD_LENGTH_M / 2.0;
+    double TILE_LENGTH_M = 0.60;
 
     double phoneXDisplacementCenterM = 0.0;
     double phoneYDisplacementCenterM = 0.1825;
@@ -236,7 +237,11 @@ public class RobotController {
      * @param angleChange angle in radians
      */
     public void rotateAngle(double angleChange) {
-        angleChange = normalizeAngle(angleChange);
+        backleft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        backright.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        frontleft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        frontright.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
         double initialTime = System.currentTimeMillis();
 
         double initialZ = getRelativeAngle();
@@ -264,18 +269,24 @@ public class RobotController {
             previousError = error;
 
             double power = error * pValue + errorDerivative * dValue + errorSum * iValue;
-            if (power < 0 && Math.abs(power) < 0.1) {
-                power = -0.1;
-            }
-            if (power > 0 && Math.abs(power) < 0.1) {
-                power = 0.1;
-            }
+//            if (power < 0 && Math.abs(power) < 0.1) {
+//                power = -0.1;
+//            }
+//            if (power > 0 && Math.abs(power) < 0.1) {
+//                power = 0.1;
+//            }
 
             backleft.setPower(power * rightRotateVector[0]);
             backright.setPower(power * rightRotateVector[1]);
             frontleft.setPower(power * rightRotateVector[2]);
             frontright.setPower(power * rightRotateVector[3]);
 
+            context.telemetry.addData("Current Angle: ", getRelativeAngle());
+            context.telemetry.addData("Target Angle: ", finalZ);
+            context.telemetry.addData("Error: ", finalZ);
+            context.telemetry.addData("Error Derivative: ", finalZ);
+            context.telemetry.addData("Error Sum: ", finalZ);
+            context.telemetry.update();
         }
 
         backleft.setPower(0);
@@ -286,11 +297,17 @@ public class RobotController {
         //Add angle change by gyro
         angle += (initialZ - getRelativeAngle());
 //        angle += angleChange;
-
     }
 
     public void rotateGlobal(double globalAngle) {
         rotateAngle(globalAngle - angle);
+    }
+
+    public void sleep(long millis) {
+        long initial = System.currentTimeMillis();
+        while (System.currentTimeMillis() < initial + millis) {
+            //nothing
+        }
     }
 
     /**
@@ -299,6 +316,12 @@ public class RobotController {
      * @param distance distance in meters
      */
     public void moveDistanceForward(double distance) {
+
+        backleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        backright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        frontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
         double cartesianAngle = PosRot.convertToCartesianAngle(angle);
         x += Math.cos(Math.toRadians(cartesianAngle));
         y += Math.sin(Math.toRadians(cartesianAngle));
@@ -329,16 +352,16 @@ public class RobotController {
             //Do Nothing
         }
 
-
         backleft.setPower(0);
         backright.setPower(0);
         frontleft.setPower(0);
         frontright.setPower(0);
 
-        backleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        backright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        frontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        frontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+//        backleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+//        backright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+//        frontleft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+//        frontright.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+
     }
 
 
@@ -411,6 +434,10 @@ public class RobotController {
 //        waitForUserInput();
 
         moveDistanceForward(distance);
+    }
+
+    public void moveToLocationTiles (double tileX, double tileY) {
+        moveToLocation(new PosRot(tileX * TILE_LENGTH_M, tileY * TILE_LENGTH_M, 0.0));
     }
 
     /**

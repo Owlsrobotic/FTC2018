@@ -29,16 +29,23 @@
 
 package org.firstinspires.ftc.teamcode;
 
-import android.hardware.Camera;
+import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.os.Environment;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.util.RobotLog;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.vuforia.CameraDevice;
+import com.vuforia.Frame;
+import com.vuforia.Image;
+import com.vuforia.PIXEL_FORMAT;
 
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
-import org.firstinspires.ftc.robotcore.external.matrices.MatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.OpenGLMatrix;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -50,7 +57,12 @@ import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackable;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackableDefaultListener;
 import org.firstinspires.ftc.robotcore.external.navigation.VuforiaTrackables;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -85,128 +97,120 @@ import java.util.List;
  * is explained below.
  */
 
-@Autonomous(name="Concept: Vuforia Navigation", group ="Concept")
-public class VuforiaNav extends LinearOpMode {
+@TeleOp(name="CV Color Detector", group ="Concept")
+public class BallDetector extends LinearOpMode {
 
     public static final String TAG = "Vuforia Navigation Sample";
     OpenGLMatrix lastLocation = null;
 
     VuforiaLocalizer vuforia;
 
-    double FIELD_LENGTH_M = 3.6576;
-    double WALL_DISTANCE_FROM_ORIGIN_M = FIELD_LENGTH_M / 2.0;
-
-    HashMap<String, PosRot> markerPosition;
-    String bluePerimeterKey = "BluePerimeter";
-    String redPerimeterKey = "RedPerimeter";
-    String frontPerimeterKey = "FrontPerimeter";
-    String backPerimeterKey = "BackPerimeter";
 
     @Override public void runOpMode() {
-        markerPosition = new HashMap<>();
-        markerPosition.put(frontPerimeterKey, new PosRot(0.0, WALL_DISTANCE_FROM_ORIGIN_M, 0));
-        markerPosition.put(backPerimeterKey, new PosRot(0.0, -1.0 * WALL_DISTANCE_FROM_ORIGIN_M, 180));
-        markerPosition.put(redPerimeterKey, new PosRot(-1.0 * WALL_DISTANCE_FROM_ORIGIN_M, 0.0, -90));
-        markerPosition.put(bluePerimeterKey, new PosRot(WALL_DISTANCE_FROM_ORIGIN_M, 0.0, 90));
-
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters(cameraMonitorViewId);
 
         parameters.vuforiaLicenseKey = "AQbo49L/////AAABmevTy7Z03UsqrGI3R60ynpp4g2rvNVf/1dCnq/yA0t/udppqkvr8wuV7EJUTuEa5rpWh172gpT25p58RhAeE2g5ulDjPlko+sREUhxbr5Nlu7T0dcljWhUCWoTe2wVPN+pI4TRbfsXfTKLhPxDsk8H4uXFFXLoMNrLV/cv83mGrUpSGmYDqVQczcgKcZjKCDbxC0QtOv5alUZfT9Qt6rrIYFG0ZCoVUnq64B6yeDS4P49yo5czr1LQ/9ZOjGeoaFzOG18WjxKoNnr7dffjEwvEj9p/uaUYT025Bzu7w6J0SqRcc0+BGAkPVTr54/sxJIL82+UEWzkApu5g6xDrYT5+s/dDh+aS59TYElhpGOuFeI";
 
         parameters.cameraDirection = VuforiaLocalizer.CameraDirection.BACK;
+        parameters.fillCameraMonitorViewParent = false;
+
         this.vuforia = ClassFactory.createVuforiaLocalizer(parameters);
+        vuforia.setFrameQueueCapacity(1);
+        vuforia.enableConvertFrameToBitmap();
 
-        VuforiaTrackables roverRuckus = this.vuforia.loadTrackablesFromAsset("RoverRuckus");
-        VuforiaTrackable bluePerimeter = roverRuckus.get(0);
-        bluePerimeter.setName(bluePerimeterKey);
-
-        VuforiaTrackable redPerimeter  = roverRuckus.get(1);
-        redPerimeter.setName(redPerimeterKey);
-
-        VuforiaTrackable frontPerimeter  = roverRuckus.get(2);
-        frontPerimeter.setName(frontPerimeterKey);
-
-        VuforiaTrackable backPerimeter  = roverRuckus.get(3);
-        backPerimeter.setName(backPerimeterKey);
-
-        /** For convenience, gather together all the trackable objects in one easily-iterable collection */
-        List<VuforiaTrackable> allTrackables = new ArrayList<VuforiaTrackable>();
-        allTrackables.addAll(roverRuckus);
-
-
-        /** Wait for the game to begin */
         telemetry.addData(">", "Press Play to start tracking");
         telemetry.update();
         waitForStart();
 
-        /** Start tracking the data sets we care about. */
-        roverRuckus.activate();
+//        CameraDevice.getInstance().setFlashTorchMode(true);
+        double threshold = .95;
+        int minVotes = 30;
+        int minRadius = 1;
+        int maxRadius = 10;
 
-        CameraDevice.getInstance().setFlashTorchMode(true);
         while (opModeIsActive()) {
+            if (gamepad1.dpad_up) {
+                minVotes++;
+                sleep(100);
+            }
+            if (gamepad1.dpad_down) {
+                minVotes--;
+                sleep(100);
+            }
+            if (gamepad1.dpad_right) {
+                maxRadius++;
+                sleep(100);
+            }
+            if (gamepad1.dpad_left) {
+                maxRadius--;
+                sleep(100);
+            }
+            if (gamepad1.x) {
+                threshold += .01;
+                sleep(100);
+            }
+            if (gamepad1.b) {
+                threshold -= 0.01;
+                sleep(100);
+            }
+            if (gamepad1.left_bumper) {
+                minRadius -= 1;
+                sleep(100);
+            }
+            if (gamepad1.right_bumper) {
+                minRadius += 1;
+                sleep(100);
+            }
+            telemetry.addData("Min Votes: ", minVotes);
+            telemetry.addData("Min Radius: ", minRadius);
+            telemetry.addData("Max Radius: ", maxRadius);
+            telemetry.addData("Threshold ", threshold);
+            telemetry.update();
+            if (gamepad1.a) {
+                try {
+                    Frame frame = vuforia.getFrameQueue().take();
+                    for (int i = 0; i < frame.getNumImages(); i++) {
+                        //Get Image
+                        Image image = frame.getImage(i);
+                        if (image.getFormat() == PIXEL_FORMAT.RGB565) {
+                            BlobDetector detector = new BlobDetector(image, threshold, 0.1);
+//                        ArrayList<int[]> blobs = detector.findCircles(30, 10);
+//                        Collections.sort(blobs, new Comparator<int[]>() {
+//                            @Override
+//                            public int compare(int[] t1, int[] t2) {
+//                                if (t1[0] < t2[0]) {
+//                                    return -1;
+//                                }
+//                                if (t1[0] > t2[0]) {
+//                                    return 1;
+//                                }
+//                                return 0;
+//                            }
+//                        });
+//                        for (int[] blob : blobs) {
+//                            int color = detector.scaledBitmap.getPixel(blob[0], blob[1]);
+//                            final float[] hslValue = {0F, 0F, 0F};
+//                            Color.colorToHSV(color, hslValue);
+//                            telemetry.addData("COLOR H: ", hslValue[0]);
+//                            telemetry.addData("COLOR S: ", hslValue[1]);
+//                            telemetry.addData("COLOR V: ", hslValue[2]);
+//                            telemetry.addData("--------", "---------");
+//
+//                        }
 
-            //How far the image is relative to the camera(in millimeters)
-            double tX = 0.0;
-            double tY = 0.0;
-            double tZ = 0.0;
-            //How the image is rotated relative to the camera(in degrees)
-            double rX = 0.0;
-            double rY = 0.0;
-            double rZ = 0.0;
-
-            String trackerName = "";
-
-            for (VuforiaTrackable trackable : allTrackables) {
-                /**
-                 * getUpdatedRobotLocation() will return null if no new information is available since
-                 * the last time that call was made, or if the trackable is not currently visible.
-                 * getRobotLocation() will return null if the trackable is not currently visible.
-                 */
-                telemetry.addData(trackable.getName(), ((VuforiaTrackableDefaultListener)trackable.getListener()).isVisible() ? "Visible" : "Not Visible");    //
-
-                OpenGLMatrix pose = ((VuforiaTrackableDefaultListener) trackable.getListener()).getPose();
-
-                if (pose != null) {
-                    VectorF trans = pose.getTranslation();
-                    Orientation rot = Orientation.getOrientation(pose, AxesReference.EXTRINSIC, AxesOrder.XYZ, AngleUnit.DEGREES);
-                    tX = trans.get(0);
-                    tY = trans.get(1);
-                    tZ = trans.get(2);
-
-                    rX = rot.firstAngle;
-                    rY = rot.secondAngle;
-                    rZ = rot.thirdAngle;
-
-                    trackerName = trackable.getName();
+                            detector.renderImage("/sdcard/DCIM/Camera/preview.png", minVotes, minRadius, maxRadius);
+                            telemetry.addData("PHOTO TAKEN ", "");
+                            sleep(1000);
+//                        telemetry.addData("Blobs: ", blobs.size());
+                            telemetry.update();
+                            break;
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
-            /**
-             * Provide feedback as to where the robot was last located (if we know).
-             */
-            if (tX != 0.0) {
-                telemetry.addData("Trans X: ", tX);
-                telemetry.addData("Trans Y: ", tY);
-                telemetry.addData("Trans Z: ", tZ);
-
-                telemetry.addData("Rot X: ", rX);
-                telemetry.addData("Rot Y: ", rY);
-                telemetry.addData("Rot Z: ", rZ);
-
-                PosRot markerRotPos = markerPosition.get(trackerName);
-
-                PosRot robotRotPos = new PosRot(tX / 1000.0, tZ / 1000.0, rY);
-                robotRotPos = robotRotPos.rotate(-1.0 * robotRotPos.rot);
-                robotRotPos = robotRotPos.rotate(-1.0 * markerRotPos.rot);
-
-                telemetry.addData("Robot Pos X: ", markerRotPos.x + robotRotPos.x);
-                telemetry.addData("Robot Pos Y: ", markerRotPos.y + robotRotPos.y);
-                telemetry.addData("Robot Rot: ", markerRotPos.rot + robotRotPos.rot);
-
-            } else {
-                telemetry.addData("Pos", "Unknown");
-            }
-            telemetry.update();
         }
     }
 

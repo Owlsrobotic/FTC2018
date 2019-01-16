@@ -31,6 +31,9 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import java.sql.Driver;
@@ -49,14 +52,13 @@ import java.sql.Driver;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@TeleOp(name="Double Joystick Drive", group="Linear Opmode")
+@TeleOp(name="Double Joystick Driver OP", group="Linear Opmode")
 public class DoubleJoystickDrive extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
     RobotController controller;
 
-    boolean heli = false;
 
     @Override
     public void runOpMode() {
@@ -65,44 +67,82 @@ public class DoubleJoystickDrive extends LinearOpMode {
 
         controller = new RobotController(this);
         DriverConfiguration cfg = new DriverConfiguration(controller.frontright,
-                                                          controller.frontleft,
-                                                          controller.backright,
-                                                          controller.backleft,
-                                                          new int[]{-1, 1, -1, 1},
-                                                1.0);
+                controller.frontleft,
+                controller.backright,
+                controller.backleft,
+                new int[]{-1, 1, -1, 1},
+                0.5);
+
 
         // Wait for the game to start (driver presses PLAY)
         waitForStart();
         runtime.reset();
 
         // run until the end of the match (driver presses STOP)
+        double power = 0.6;
         while (opModeIsActive()) {
-            // Helicopter
-            if (gamepad2.a && heli) {
-                heli = false;
-            } else if (gamepad2.a && !heli) {
-                heli = true;
+            if(gamepad1.right_trigger > 0.5) {
+                power = Math.min(power + 0.1, 1.0);
+                controller.sleep(100);
             }
 
-            if (heli) {
-                controller.powerCRServo(controller.testServo, 1);
-            } else {
-                controller.powerCRServo(controller.testServo, 0);
+            if(gamepad1.left_trigger > 0.5) {
+                power = Math.max(0.0, power - 0.1);
+                controller.sleep(100);
             }
 
-            // Collect input
-            double transPow = RobotUtil.round(gamepad2.left_stick_y, 0.1);
-            double rotPow = RobotUtil.round(gamepad2.right_stick_x, 0.1);
+            telemetry.addData("Drive Power: ", power * 100.0 + "%");
+            telemetry.update();
 
+            cfg.setMaxPower(power);
             cfg.zeroPower();
 
-            // Assign translational values
+            // Collect input
+            double transPow = RobotUtil.round(gamepad1.left_stick_y, 0.1);
+            double rotPow = RobotUtil.round(gamepad1.right_stick_x, 0.1);
+
             cfg.addTransPower(transPow);
-
-            // Assign rotational values
             cfg.addRotPower(rotPow);
-
             cfg.startMotors();
+
+            //Reset Motors
+            controller.hook.setPower(0.0);
+            controller.leftClaw.setPower(0.0);
+            controller.rightClaw.setPower(0.0);
+
+            //Arm
+            if(gamepad2.left_bumper && !gamepad2.right_bumper) {
+                //Lower Arm
+                controller.leftClaw.setPower(-0.7);
+                controller.rightClaw.setPower(-0.7);
+            } else if (gamepad2.right_bumper && !gamepad2.left_bumper) {
+                //Raise Arm
+                controller.leftClaw.setPower(0.7);
+                controller.rightClaw.setPower(0.7);
+            }
+
+            //Claw
+            if(gamepad2.b && !gamepad2.a) {
+                //Open Claw
+                controller.claw.setDirection(CRServo.Direction.FORWARD);
+                controller.claw.setPower(1.0);
+            } else if (gamepad2.a && !gamepad2.b) {
+                //Close Claw
+                controller.claw.setDirection(CRServo.Direction.REVERSE);
+                controller.claw.setPower(1.0);
+            } else {
+                controller.claw.setPower(0.0);
+            }
+
+            //Hook
+            if (gamepad1.right_bumper) {
+                //Raise Hook
+                controller.hook.setPower(-1.0);
+            }
+            if (gamepad1.left_bumper) {
+                //Lower Hook
+                controller.hook.setPower(1.0);
+            }
         }
     }
 }

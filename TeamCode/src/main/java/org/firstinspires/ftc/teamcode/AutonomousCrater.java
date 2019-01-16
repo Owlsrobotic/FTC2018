@@ -29,6 +29,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -48,28 +49,51 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  * Remove or comment out the @Disabled line to add this opmode to the Driver Station OpMode list
  */
 
-@TeleOp(name="Autonomous Testing", group="Linear Opmode")
-public class AutonomousTesting extends LinearOpMode {
+@Autonomous(name="Autonomous Crater", group="Linear Opmode")
+public class AutonomousCrater extends LinearOpMode {
 
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
 
     @Override
     public void runOpMode() {
+        RobotController controller = new RobotController(this);
+
         telemetry.addData("Status", "Initialized");
         telemetry.update();
         waitForStart();
         runtime.reset();
 
-//        RobotController controller = new RobotController(this);
         // run until the end of the match (driver presses STOP)
         while (opModeIsActive()) {
+            //Lower Robot Down
+            long time = System.currentTimeMillis();
+            while (System.currentTimeMillis() - time < 7250) {
+                controller.hook.setPower(-1.0);
+            }
+            controller.hook.setPower(0.0);
+            //Drive Forward/Rotate to Unhook
+            controller.power = 1.0;
+            controller.moveForward(0.2);
+            controller.rotateAngle(-105.0);
+            //Drive Forward ... Rotate to wall ... Get to Wall
+            controller.moveDistanceForward(0.35);
+            controller.rotateAngle(-90.0);
+            controller.moveDistanceForward(1.2);
+            controller.rotateAngle(140);
+            controller.moveDistanceForward(-1.0);
+            //Release Marker
+            time = System.currentTimeMillis();
+            while (System.currentTimeMillis() - time < 700) {
+                controller.leftClaw.setPower(-0.5);
+                controller.rightClaw.setPower(-0.5);
+            }
+            controller.leftClaw.setPower(0.0);
+            controller.rightClaw.setPower(0.0);
+            controller.moveDistanceForward(2.6);
 
-//            controller.localize();
-//            controller.moveToLocationTiles(2, 2);
-//            controller.moveToLocationTiles(-0.5, 2);
-//            controller.moveToLocationTiles(-2.5, 0);
-            hardwareMap.dcMotor.get("testmotor").setPower(1.0);
+
+            break;
         }
     }
 }

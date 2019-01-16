@@ -71,6 +71,14 @@ public class RobotController {
     public DcMotor frontleft = null;
     public DcMotor frontright = null;
 
+    //Other Motors
+    public DcMotor leftClaw = null;
+    public DcMotor rightClaw = null;
+    public DcMotor hook = null;
+
+    // Servos
+    public CRServo claw;
+
     //Movement Calibration Stuff
     double COUNTS_PER_MOTOR_REV = 2240;
     //Good Number: 0.51625
@@ -80,7 +88,7 @@ public class RobotController {
             (WHEEL_DIAMETER_M * 3.1415);
     double power = 0.5;
 
-    double timeOutMillis = 10000;
+    double timeOutMillis = 3000;
     double threshold = 0.1;
     //Good Number: 0.04456049
     double pValue = 1.0 / 25.0;
@@ -113,9 +121,6 @@ public class RobotController {
     BNO055IMU imu;
     BNO055IMU.Parameters imuParameters = new BNO055IMU.Parameters();
 
-    // Servos
-    public CRServo testServo;
-
     //Color Training Data
     ArrayList<ColorDataTrain> trainingSet = new ArrayList<>();
     ColorSensor color;
@@ -127,25 +132,32 @@ public class RobotController {
         hmap = context.hardwareMap;
 
         // Sensors
-        testColorSensor = hmap.colorSensor.get("color");
-        testTouchSensor = hmap.digitalChannel.get("touch");
-        testColorSensor.enableLed(true);
-        testTouchSensor.setMode(DigitalChannel.Mode.INPUT);
+//        testColorSensor = hmap.colorSensor.get("color");
+//        testTouchSensor = hmap.digitalChannel.get("touch");
+//        testColorSensor.enableLed(true);
+//        testTouchSensor.setMode(DigitalChannel.Mode.INPUT);
 
         // Servos
-        testServo = hmap.crservo.get("servo");
+//        testServo = hmap.crservo.get("servo");
+        claw = hmap.crservo.get("claw");
+
         // setting up motors
         frontright = hmap.dcMotor.get("front_right");
         frontleft = hmap.dcMotor.get("front_left");
         backright = hmap.dcMotor.get("back_right");
         backleft = hmap.dcMotor.get("back_left");
 
-        // sensors
+        leftClaw = hmap.dcMotor.get("left_claw");
+        rightClaw = hmap.dcMotor.get("right_claw");
+        hook = hmap.dcMotor.get("hook");
 
+        // sensors
         frontright.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         frontleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backright.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         backleft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        leftClaw.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rightClaw.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         //Initialize Vuforia stuff
         markerPosition = new HashMap<>();
@@ -191,7 +203,7 @@ public class RobotController {
         imu.initialize(imuParameters);
 
         //Initialize Color Training Data
-        color = hmap.colorSensor.get("color");
+//        color = hmap.colorSensor.get("color");
 
         try {
             FileInputStream fis = hmap.appContext.openFileInput("ColorCalibration.ser");
@@ -234,7 +246,7 @@ public class RobotController {
     /**
      * Rotates the robot.
      *
-     * @param angleChange angle in radians
+     * @param angleChange angle in degrees
      */
     public void rotateAngle(double angleChange) {
         backleft.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -502,8 +514,23 @@ public class RobotController {
     /**
      * Powers a CRServo.
      */
-    public void powerCRServo (CRServo servo,double pow){
+    public void powerCRServo (CRServo servo, double pow){
         servo.setDirection(CRServo.Direction.FORWARD);
         servo.setPower(pow);
     }
+
+    public void moveForward(double power) {
+        backleft.setPower(power * fowardVector[0]);
+        backright.setPower(power * fowardVector[1]);
+        frontleft.setPower(power * fowardVector[2]);
+        frontright.setPower(power * fowardVector[3]);
+    }
+
+    public void rotateRight(double power) {
+        backleft.setPower(power * rightRotateVector[0]);
+        backright.setPower(power * rightRotateVector[1]);
+        frontleft.setPower(power * rightRotateVector[2]);
+        frontright.setPower(power * rightRotateVector[3]);
+    }
+
 }
